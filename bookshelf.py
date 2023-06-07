@@ -117,7 +117,7 @@ class Bookshelf:
     def create_constant_uint32(self, value: int) -> Book:
         return self.import_ndarray((), np.array(value, dtype=np.uint32))
 
-    def create_from_list(self, dim: str, values: list[int]) -> Book:
+    def create_from_uint32s(self, dim: str, values: list[int]) -> Book:
         return self.import_ndarray((dim,), np.array(values, dtype=np.uint32))
 
     def import_ndarray(self, dims: tuple[str], value: np.ndarray) -> Book:
@@ -268,19 +268,19 @@ def test_create_from_list_wrong_size():
     bs = Bookshelf()
     bs.add_dimension_const("x", 2)
     with pytest.raises(ValueError):
-        bs.create_from_list("x", [1, 2, 3])
+        bs.create_from_uint32s("x", [1, 2, 3])
 
 def test_import_multi_list():
     bs = Bookshelf()
     bs.add_dimension_const("x", 2)
-    ny = bs.create_from_list("x", [4, 3])
+    ny = bs.create_from_uint32s("x", [4, 3])
     bs.add_dimension("y", ny)
     b = bs.import_multi_list(("x", "y"), np.float32, [[1, 2, 3, 4], [5, 6, 7]])
 
 def test_import_multi_list_wrong_ysize():
     bs = Bookshelf()
     bs.add_dimension_const("x", 2)
-    ny = bs.create_from_list("x", [4, 3])
+    ny = bs.create_from_uint32s("x", [4, 3])
     bs.add_dimension("y", ny)
     with pytest.raises(ValueError):
         b = bs.import_multi_list(("x", "y"), np.float32, [[1, 2, 3, 4], [5, 6, 7, 8]])
@@ -288,7 +288,7 @@ def test_import_multi_list_wrong_ysize():
 def test_import_multi_list_wrong_xsize():
     bs = Bookshelf()
     bs.add_dimension_const("x", 2)
-    ny = bs.create_from_list("x", [4, 3])
+    ny = bs.create_from_uint32s("x", [4, 3])
     bs.add_dimension("y", ny)
     with pytest.raises(ValueError):
         b = bs.import_multi_list(("x", "y"), np.float32, [[1, 2, 3, 4], [5, 6, 7], [8,9]])
@@ -296,7 +296,7 @@ def test_import_multi_list_wrong_xsize():
 def test_import_multi_list_too_much_rank():
     bs = Bookshelf()
     bs.add_dimension_const("x", 2)
-    ny = bs.create_from_list("x", [4, 3])
+    ny = bs.create_from_uint32s("x", [4, 3])
     bs.add_dimension("y", ny)
     with pytest.raises(ValueError):
         b = bs.import_multi_list(("x", "y"), np.float32, [[[1], [2], [3], [4]], [[5], [6], [7]]])
@@ -304,14 +304,14 @@ def test_import_multi_list_too_much_rank():
 def test_import_multi_empty_x():
     bs = Bookshelf()
     bs.add_dimension_const("x", 0)
-    ny = bs.create_from_list("x", [])
+    ny = bs.create_from_uint32s("x", [])
     bs.add_dimension("y", ny)
     b = bs.import_multi_list(("x", "y"), np.float32, [])
 
 def test_import_multi_empty_y():
     bs = Bookshelf()
     bs.add_dimension_const("x", 2)
-    ny = bs.create_from_list("x", [0, 0])
+    ny = bs.create_from_uint32s("x", [0, 0])
     bs.add_dimension("y", ny)
     b = bs.import_multi_list(("x", "y"), np.float32, [[], []])
 
@@ -336,14 +336,14 @@ def test_import_multi_rectangular_yonly():
 def test_import_multi_list_pseudo_rectangular():
     bs = Bookshelf()
     bs.add_dimension_const("x", 2)
-    ny = bs.create_from_list("x", [4, 4])
+    ny = bs.create_from_uint32s("x", [4, 4])
     bs.add_dimension("y", ny)
     b = bs.import_multi_list(("x", "y"), np.float32, [[1, 2, 3, 4], [5, 6, 7, 8]])
 
 def test_import_multi_list_pseudo_rectangular_flipped():
     bs = Bookshelf()
     bs.add_dimension_const("x", 2)
-    ny = bs.create_from_list("x", [4, 4])
+    ny = bs.create_from_uint32s("x", [4, 4])
     bs.add_dimension("y", ny)
     with pytest.raises(ValueError):
         b = bs.import_multi_list(("y","x"), np.float32, [[1, 2], [3,4], [5,6], [7,8]])
@@ -351,7 +351,7 @@ def test_import_multi_list_pseudo_rectangular_flipped():
 def test_import_multi_list_pseudo_rectangular_yonly():
     bs = Bookshelf()
     bs.add_dimension_const("x", 2)
-    ny = bs.create_from_list("x", [4, 4])
+    ny = bs.create_from_uint32s("x", [4, 4])
     bs.add_dimension("y", ny)
     with pytest.raises(ValueError):
         b = bs.import_multi_list(("y",), np.float32, [1,2,3,4])
