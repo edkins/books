@@ -10,11 +10,11 @@ def test_import_ndarray_constant():
     bs.add_dimension_const("z", 4)
     dims = ("x", "y", "z")
     value = np.zeros((2, 3, 4))
-    book = bs.import_ndarray(dims, value)
+    book = bs.import_ndarray(dims, value, False)
     assert book.inner_dims == dims
     assert list(bs._leaf_through((),dims)) == [((),(2, 3, 4))]
     assert list(bs._leaf_through((),("x",))) == [((),(2,))]
-    assert not book.is_constant()
+    assert not book.is_scalar()
 
 def test_add_dimension_constant():
     bs = Bookshelf()
@@ -23,17 +23,17 @@ def test_add_dimension_constant():
     bs.add_dimension_const("z", 4)
     dims = ("x", "y", "z")
     value = np.zeros((2, 3, 4))
-    book = bs.import_ndarray(dims, value)
+    book = bs.import_ndarray(dims, value, False)
     bs.add_dimension("t", bs.create_constant_uint32(1))
     assert [dim.name for dim in bs.dimensions] == ["x", "y", "z", "t"]
-    assert bs.dim("t").size.get_constant() == 1
+    assert bs.dim("t").size.get_scalar() == 1
 
 def test_empty_bookshelf_dims():
     bs = Bookshelf()
     book = bs.create_constant_uint32(123)
     assert list(bs._leaf_through((),())) == [((),())]
-    assert book.is_constant()
-    assert book.get_constant() == 123
+    assert book.is_scalar()
+    assert book.get_scalar() == 123
 
 def test_swapped_dimension():
     bs = Bookshelf()
@@ -42,7 +42,7 @@ def test_swapped_dimension():
     bs.add_dimension_const("z", 4)
     dims = ("x", "y", "z")
     value = np.zeros((3, 2, 4))
-    book = bs.import_ndarray(("y", "x", "z"), value)
+    book = bs.import_ndarray(("y", "x", "z"), value, False)
     assert book.inner_dims == ("y", "x", "z")
 
 def test_dimension_already_exists():
@@ -144,3 +144,22 @@ def test_import_multi_list_pseudo_rectangular_yonly():
     bs.add_dimension("y", ny)
     with pytest.raises(ValueError):
         b = bs.import_multi_list(("y",), np.float32, [1,2,3,4])
+
+def test_dependent_dim_from_ndarray():
+    bs = Bookshelf()
+    bs.add_dimension_const("x", 2)
+    a = np.zeros((2,))
+    a[0] = 3
+    a[1] = 6
+    ny = bs.import_ndarray("x", a, False)
+    bs.add_dimension("y", ny)
+
+def test_dependent_dim_from_ndarray_mutable():
+    bs = Bookshelf()
+    bs.add_dimension_const("x", 2)
+    a = np.zeros((2,))
+    a[0] = 3
+    a[1] = 6
+    ny = bs.import_ndarray("x", a, True)
+    with pytest.raises(ValueError):
+        bs.add_dimension("y", ny)

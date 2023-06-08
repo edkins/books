@@ -11,7 +11,7 @@ class _Dimension:
         return self.size.has_dim(other)
 
 class Book:
-    def __init__(self, bookshelf: Bookshelf, outer_dims: tuple[str], inner_dims: tuple[str], values: dict[tuple[int],np.ndarray]):
+    def __init__(self, bookshelf: Bookshelf, outer_dims: tuple[str], inner_dims: tuple[str], values: dict[tuple[int],np.ndarray], is_mutable: bool):
         bookshelf._check_split_dims(outer_dims, inner_dims)
 
         # Error if we specify the wrong number of values
@@ -28,6 +28,7 @@ class Book:
         self.outer_dims = outer_dims
         self.inner_dims = inner_dims
         self.values = values
+        self.is_mutable = is_mutable
 
     def has_dim(self, dim: str) -> bool:
         return dim in self.outer_dims or dim in self.inner_dims
@@ -36,15 +37,15 @@ class Book:
     def defined_by_dims(self, dims: tuple[str]) -> bool:
         return set(self.outer_dims).issubset(dims) and set(self.inner_dims).issubset(dims)
 
-    def is_constant(self) -> bool:
+    def is_scalar(self) -> bool:
         return len(self.outer_dims) == 0 and len(self.inner_dims) == 0
 
     def is_rectangular(self) -> bool:
         return len(self.outer_dims) == 0
 
-    def get_constant(self) -> Any:
-        if not self.is_constant():
-            raise ValueError("Book is not constant")
+    def get_scalar(self) -> Any:
+        if not self.is_scalar():
+            raise ValueError("Book is not scalar")
         return self.values[()]
 
     def get_ndarray(self) -> np.ndarray:
@@ -114,17 +115,17 @@ class Bookshelf:
                 raise ValueError(f"Outer dimension {dim} is not used by any inner dimension. Push it inwards.")
 
     def create_constant_uint32(self, value: int) -> Book:
-        return self.import_ndarray((), np.array(value, dtype=np.uint32))
+        return self.import_ndarray((), np.array(value, dtype=np.uint32), is_mutable=False)
 
     def create_from_uint32s(self, dim: str, values: list[int]) -> Book:
-        return self.import_ndarray((dim,), np.array(values, dtype=np.uint32))
+        return self.import_ndarray((dim,), np.array(values, dtype=np.uint32), is_mutable=False)
 
-    def import_ndarray(self, dims: tuple[str], value: np.ndarray) -> Book:
+    def import_ndarray(self, dims: tuple[str], value: np.ndarray, is_mutable: bool) -> Book:
         if len(dims) != len(value.shape):
             raise ValueError(f"Dimension count mismatch: {dims} vs {value.shape}")
-        if not all(self.dim(d).size.is_constant() for d in dims):
-            raise ValueError(f"Dimensions must be constant in import_ndarray: {dims}")
-        return Book(self, (), dims, {():value})
+        if not all(self.dim(d).size.is_scalar() for d in dims):
+            raise ValueError(f"Dimensions must be scalar in import_ndarray: {dims}")
+        return Book(self, (), dims, {():value}, is_mutable)
 
     def _consult_multi_list(self, dims: tuple[str], dtype, values: Any, context: dict[tuple[int],int]) -> Any:
         if len(dims) == 0:
@@ -163,7 +164,7 @@ class Bookshelf:
                 raise UnexpectedError("leaf_through returned wrong number of dimensions")
             context = dict(zip(dims0, ix))
             result[ix] = np.array(self._consult_multi_list(dims, dtype, values, context), dtype=dtype)
-        return Book(self, dims0, dims1, result)
+        return Book(self, dims0, dims1, result, is_mutable=False)
 
     # Return the list of dimensions which other given dimensions depend on
     # and then the rest.
@@ -205,6 +206,10 @@ class Bookshelf:
         for dim in self.dimensions:
             if dim.name == name:
                 raise ValueError(f"Dimension name must be unique: {name}")
+
+        # Check size book is immutable
+        if size.is_mutable:
+            raise ValueError(f"Size book must be immutable")
 
         self.dimensions.append(_Dimension(name, size))
 
