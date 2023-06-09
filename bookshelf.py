@@ -68,6 +68,9 @@ class Book:
     # Context can include irrelevant dimensions or missing dimensions
     #def get_book_at(self, **kwargs: int) -> Book:
 
+    def __repr__(self) -> str:
+        return f"Book({self.outer_dims}, {self.inner_dims}, ...)"
+
 class Bookshelf:
     def __init__(self):
         self.dimensions = []
@@ -120,12 +123,22 @@ class Bookshelf:
     def create_from_uint32s(self, dim: str, values: list[int]) -> Book:
         return self.import_ndarray((dim,), np.array(values, dtype=np.uint32), is_mutable=False)
 
-    def import_ndarray(self, dims: tuple[str], value: np.ndarray, is_mutable: bool) -> Book:
+    def import_ndarray(self, dims: tuple[str], value: np.ndarray, is_mutable: bool = False) -> Book:
         if len(dims) != len(value.shape):
             raise ValueError(f"Dimension count mismatch: {dims} vs {value.shape}")
         if not all(self.dim(d).size.is_scalar() for d in dims):
             raise ValueError(f"Dimensions must be scalar in import_ndarray: {dims}")
         return Book(self, (), dims, {():value}, is_mutable)
+
+    def import_multi_ndarray(self, outer_dims: tuple[str], inner_dims: tuple[str], ixs: list[tuple[int]], values: list[np.ndarray], is_mutable: bool = False) -> Book:
+        self._check_split_dims(outer_dims, inner_dims)
+        if len(ixs) != len(values):
+            raise ValueError(f"Index count mismatch: {len(ixs)} vs {len(values)}")
+        return Book(self, outer_dims, inner_dims, {ixs[i]:values[i] for i in range(len(ixs))}, is_mutable)
+
+    def import_ndarray_list(self, outer_dim: str, inner_dims: tuple[str], values: list[np.ndarray], is_mutable: bool = False) -> Book:
+        self._check_split_dims((outer_dim,), inner_dims)
+        return Book(self, (outer_dim,), inner_dims, {(i,):values[i] for i in range(len(values))}, is_mutable)
 
     def _consult_multi_list(self, dims: tuple[str], dtype, values: Any, context: dict[tuple[int],int]) -> Any:
         if len(dims) == 0:
@@ -215,3 +228,6 @@ class Bookshelf:
 
     def add_dimension_const(self, name: str, size: int):
         self.add_dimension(name, self.create_constant_uint32(size))
+
+    def add_dimension_dependent(self, name: str, deps: tuple[str], values: list[int]):
+        self.add_dimension(name, self.import_multi_list(deps, np.uint32, values))
