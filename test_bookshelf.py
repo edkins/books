@@ -163,3 +163,35 @@ def test_dependent_dim_from_ndarray_mutable():
     ny = bs.import_ndarray("x", a, True)
     with pytest.raises(ValueError):
         bs.add_dimension("y", ny)
+
+def test_get_ndarray_at():
+    bs = Bookshelf()
+    bs.add_dimension_const("x", 2)
+    bs.add_dimension_dependent("y", "x", [3, 4])
+    b = bs.import_multi_list(("x", "y"), np.float32, [[1, 2, 3], [4, 5, 6, 7]])
+    assert np.array_equal(b.get_ndarray_at(x=0), np.array([1,2,3]))
+    assert np.array_equal(b.get_ndarray_at(x=1), np.array([4,5,6,7]))
+    assert b.get_ndarray_at(x=0, y=2) == 3
+
+def test_get_ndarray_rectangular():
+    bs = Bookshelf()
+    bs.add_dimension_const("x", 2)
+    bs.add_dimension_const("y", 3)
+    b = bs.import_multi_list(("x", "y"), np.float32, [[1, 2, 3], [4, 5, 6]])
+    assert np.array_equal(b.get_ndarray_at(x=0), np.array([1,2,3]))
+    assert np.array_equal(b.get_ndarray_at(x=1), np.array([4,5,6]))
+    assert b.get_ndarray_at(x=0, y=2) == 3
+    assert np.array_equal(b.get_ndarray_at(y=2), np.array([3,6]))
+    assert np.array_equal(b.get_ndarray_at(), np.array([[1,2,3], [4,5,6]]))
+
+def test_get_ndarray_at_fail():
+    bs = Bookshelf()
+    bs.add_dimension_const("x", 2)
+    bs.add_dimension_dependent("y", "x", [3, 4])
+    b = bs.import_multi_list(("x", "y"), np.float32, [[1, 2, 3], [4, 5, 6, 7]])
+    with pytest.raises(KeyError):
+        b.get_ndarray_at(x=2)
+    with pytest.raises(ValueError):
+        b.get_ndarray_at(y=1)
+    with pytest.raises(ValueError):
+        b.get_ndarray_at()

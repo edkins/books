@@ -56,20 +56,37 @@ class Book:
     # Context can include irrelevant dimensions
     def get_scalar_at(self, **kwargs: int) -> Any:
         if not set(self.outer_dims).issubset(kwargs.keys()):
-            raise ValueError(f"Context does not include all book outer dimensions. Context: {context}, book: {self.outer_dims}")
+            raise ValueError(f"Context does not include all book outer dimensions. Context: {kwargs}, book: {self.outer_dims}")
         if not set(self.inner_dims).issubset(kwargs.keys()):
-            raise ValueError(f"Context does not include all book inner dimensions. Context: {context}, book: {self.inner_dims}")
+            raise ValueError(f"Context does not include all book inner dimensions. Context: {kwargs}, book: {self.inner_dims}")
 
         outer_ixs = tuple(kwargs[d] for d in self.outer_dims)
         inner_ixs = tuple(kwargs[d] for d in self.inner_dims)
 
         return self.values[outer_ixs][inner_ixs]
 
+    def get_ndarray_at(self, **kwargs: int) -> np.ndarray:
+        if not set(self.outer_dims).issubset(kwargs.keys()):
+            raise ValueError(f"Context does not include all book outer dimensions. Context: {kwargs}, book: {self.outer_dims}")
+
+        outer_ixs = tuple(kwargs[d] for d in self.outer_dims)
+        inner_ixs = tuple(kwargs.get(d,slice(None)) for d in self.inner_dims)
+
+        return self.values[outer_ixs][inner_ixs]
+
+    def get_ndarray_at_ixs(self, dims: tuple[str], ixs: tuple[int]) -> np.ndarray:
+        if len(dims) != len(ixs):
+            raise ValueError(f"Expected {len(dims)} dimensions, got {len(ixs)}")
+        return self.get_ndarray_at(**dict(zip(dims,ixs)))
+
     # Context can include irrelevant dimensions or missing dimensions
     #def get_book_at(self, **kwargs: int) -> Book:
 
     def __repr__(self) -> str:
         return f"Book({self.outer_dims}, {self.inner_dims}, ...)"
+
+    def get_dims(self) -> tuple[str]:
+        return self.outer_dims + self.inner_dims
 
 class Bookshelf:
     def __init__(self):
@@ -195,14 +212,17 @@ class Bookshelf:
         self._check_split_dims(result0, result1)
         return result0, result1
 
-    def enumerate_through(self, dims: tuple[str], context: dict[str,int]={}):
+    def enumerate_through(self, dims: tuple[str], context: dict[str,int]={}, debug_limit=None):
         if len(dims) == 0:
             yield ()
         else:
             d0 = dims[0]
             d1 = dims[1:]
-            for i in range(self.dim(d0).size.get_scalar_at(**context)):
-                for stuff in self.enumerate_through(d1, context={**context, d0: i}):
+            n = self.dim(d0).size.get_scalar_at(**context)
+            if debug_limit is not None:
+                n = min(n, debug_limit)
+            for i in range(n):
+                for stuff in self.enumerate_through(d1, context={**context, d0: i}, debug_limit=debug_limit):
                     yield (i,) + stuff
 
     def _leaf_through(self, dims0: tuple[str], dims1: tuple[str]):
